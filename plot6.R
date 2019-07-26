@@ -1,0 +1,72 @@
+# Fine particulate matter (PM2.5) is an ambient air pollutant for which there is strong evidence that it is harmful to human health. 
+#In the United States, the Environmental Protection Agency (EPA) is tasked with setting national ambient air quality standards for fine PM 
+#and for tracking the emissions of this pollutant into the atmosphere. 
+#Approximatly every 3 years, the EPA releases its database on emissions of PM2.5. 
+#This database is known as the National Emissions Inventory (NEI). 
+# For each year and for each type of PM source, the NEI records how many tons of PM2.5 were emitted from that source over the course of the entire year. 
+
+
+##################################
+# The data used for this assignment are for 1999, 2002, 2005, and 2008 : https://d396qusza40orc.cloudfront.net/exdata%2Fdata%2FNEI_data.z
+##################################
+
+################################### QUESTION 6
+# Compare emissions from motor vehicle sources in Baltimore City 
+# with emissions from motor vehicle sources in Los Angeles County, California (fips == "06037")
+# Which city has seen greater changes over time in motor vehicle emissions?
+
+################################### 
+
+plot6 <- function()
+{
+  
+  # Initialize path values
+  dataFile <- "exdata_data_NEI_data/summarySCC_PM25.rds"
+  #  pathunzipped <- "exdata_data_NEI_data"
+  zipFilename <- 'exdata_data_NEI_data.zip'
+  
+  # Check if zipfile has been already 1) dowloaded and 2)unzipped : iIF NOT,download & unzip 
+  #  zip file exists? IF NOT, downlod it
+  if (!file.exists(dataFile)) 
+  {
+    if(!file.exists(zipFilename)) 
+    { 
+      zipFileUrl <- "https://d396qusza40orc.cloudfront.net/exdata%2Fdata%2FNEI_data.zip" 
+      download.file(zipFileUrl, zipFilename)
+    }
+    unzip(zipFilename)
+  }
+  
+  # Reading data from source file & loading in dataframe :  
+  #1. NEI_Data, dataset with PM2.5 emissions in US in 1999 /2002/2005/2008
+  #2. SCC_Data , dataset with Code of Sourcein order to find the contributions  from coal combustion 
+  
+  
+  NEI_Data   <- readRDS('exdata_data_NEI_data/summarySCC_PM25.rds')
+  SCC_Data  <-  readRDS('exdata_data_NEI_data/Source_Classification_Code.rds')
+  
+  
+  # Filtring EI.Sector column  for words containing "vehicle" and subsetting NEI dataset with contribution from coal combustion
+  SCC_Data_vehicule <- SCC_Data[grep("[Vv]ehicle",SCC_Data$EI.Sector),]
+  NEI_Data_vehicule_Balth <- subset(NEI_Data, NEI_Data$SCC %in%  SCC_Data_vehicule$SCC & fips == "24510")
+  NEI_Data_vehicule_LA    <- subset(NEI_Data, NEI_Data$SCC %in%  SCC_Data_vehicule$SCC & fips == "06037")
+  
+  totEmiss_vehicule_Balth <- cbind(aggregate(Emissions ~ year , NEI_Data_vehicule_Balth , FUN = sum ), "Location" = rep("Baltimore City",4))
+  totEmiss_vehicule_LA  <- cbind(aggregate(Emissions ~ year , NEI_Data_vehicule_LA , FUN = sum ) , "Location" = rep("Los Angeles County",4))
+  
+  compareEmiss_vehicule <- rbind(totEmiss_vehicule_Balth ,totEmiss_vehicule_LA  )
+  
+  
+  # plotting graph6 : emissions/year in Baltimore for motor vehicles Vs Los Angeles ones
+  plottingBar <- ggplot(data =  compareEmiss_vehicule, aes(year, Emissions)) 
+  plottingBar <- plottingBar + geom_bar(stat="identity")  + facet_grid(.~Location) + geom_label(label=round(compareEmiss_vehicule$Emissions,0) ) +  
+    labs( x = "year", y = (expression("PM2.5 Emissions")) , title = " PM2.5 Annual Vehicle Emissions : Baltimore Vs. Los Angels" ) +
+    scale_x_discrete(limits=(c(1999,2002,2005,2008)))
+  
+  print(plottingBar)
+  
+  #Copying plot into a .png file & closing device
+  dev.copy (png,file="plot6.png",width=480, height=480)
+  dev.off()
+  
+}
